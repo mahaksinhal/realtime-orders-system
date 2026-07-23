@@ -1,6 +1,7 @@
 #  Real-Time Orders System
+the link for the live project : https://realtime-orders-app.onrender.com/
 
-This repository implements a production-grade, highly scalable real-time order update system using Node.js, PostgreSQL (LISTEN/NOTIFY), Redis (Pub/Sub), and WebSockets.
+This repository implements a highly scalable real-time order update system using Node.js, PostgreSQL (LISTEN/NOTIFY), Redis (Pub/Sub), and WebSockets.
 
 ---
 
