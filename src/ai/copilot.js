@@ -108,6 +108,11 @@ async function buildContextWindow({ minutes = 10 }) {
   };
 }
 
+let lastInsightCache = {
+  eventIdsString: '',
+  insight: null
+};
+
 async function generatePeriodicInsight() {
   try {
     const context = await buildContextWindow({ minutes: 10 });
@@ -117,6 +122,18 @@ async function generatePeriodicInsight() {
         text: "No activity in the last 10 minutes.",
         generatedAt: new Date().toISOString(),
         basedOnEventCount: 0
+      };
+    }
+
+    // Caching layer: Avoid calling Gemini API if the exact set of events in the window hasn't changed.
+    const isTestEnv = process.env.NODE_ENV === 'test';
+    const eventIdsString = context.events.map(e => e.id).sort((a, b) => a - b).join(',');
+    
+    if (!isTestEnv && lastInsightCache.eventIdsString === eventIdsString && lastInsightCache.insight) {
+      logger.info('Returning cached AI operational summary (no event changes).');
+      return {
+        ...lastInsightCache.insight,
+        generatedAt: new Date().toISOString() // Update timestamp to show it's active
       };
     }
 
@@ -131,21 +148,33 @@ Anomalies detected: ${context.anomalies.length > 0
 
 Write a 2-3 sentence plain-English operational summary based strictly on these numbers. Do not mention any other orders or numbers not provided. Keep it professional and concise.`;
 
-    const text = await generateInsight(prompt);
+    let text = await generateInsight(prompt);
 
     if (!text) {
-      return {
-        text: "Insight could not be generated. Please verify configuration.",
-        generatedAt: new Date().toISOString(),
-        basedOnEventCount: context.eventCount
-      };
+      logger.warn('Gemini API call returned null (possibly rate-limited or unconfigured). Falling back to rule-based summary.');
+      
+      const anomalyText = context.anomalies.length > 0
+        ? `Warning: ${context.anomalies.length} latency anomalies detected (orders pending > 3x average duration).`
+        : 'No pending latency anomalies were detected.';
+        
+      text = `Operational Summary: Over the last 10 minutes, the system processed ${context.eventCount} total events (INSERTs: ${context.opCounts.INSERT || 0}, UPDATEs: ${context.opCounts.UPDATE || 0}, DELETEs: ${context.opCounts.DELETE || 0}). There are currently ${context.statusCounts.pending || 0} orders pending, ${context.statusCounts.shipped || 0} shipped, and ${context.statusCounts.delivered || 0} delivered. ${anomalyText}`;
     }
 
-    return {
+    const newInsight = {
       text,
       generatedAt: new Date().toISOString(),
       basedOnEventCount: context.eventCount
     };
+
+    // Cache the insight
+    if (!isTestEnv) {
+      lastInsightCache = {
+        eventIdsString,
+        insight: newInsight
+      };
+    }
+
+    return newInsight;
   } catch (err) {
     logger.error('Failed to generate periodic operational insight:', err);
     return {
