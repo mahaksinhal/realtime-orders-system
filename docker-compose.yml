@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: good23luck
+      POSTGRES_DB: realtime_orders
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Initialize database schema and trigger automatically
+      - ./db/trigger.sql:/docker-entrypoint-initdb.d/1-trigger.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d realtime_orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  app:
+    build: .
+    container_name: realtime_app
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=postgresql://postgres:good23luck@postgres:5432/realtime_orders
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-key-123
+      - LOG_LEVEL=info
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - INSIGHT_INTERVAL_MS=${INSIGHT_INTERVAL_MS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:

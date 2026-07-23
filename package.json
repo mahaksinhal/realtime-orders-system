@@ -1,0 +1,28 @@
+{
+  "name": "realtime-orders-system",
+  "version": "1.0.0",
+  "author": "Mahak Sinhal",
+  "description": "Scalable real-time order update system using PostgreSQL, Node.js, Redis, and WebSockets.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest --runInBand --detectOpenHandles --forceExit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.5",
+    "winston": "^3.13.0",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "ISC"
+}

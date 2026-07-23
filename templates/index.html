@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Real-Time Orders Dashboard</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Backgrounds (Calm Warm Dark Charcoal Base) */
+            --bg-page: #101114;
+            --bg-panel: #16181d;
+            --bg-raised: #1c1f26;
+            --bg-hover: #22262f;
+            --bg-input: #0b0c0e;
+            
+            /* Text (High legibility, low glare) */
+            --text-primary: #e4e6eb;
+            --text-secondary: #a0a5b5;
+            --text-muted: #5e6475;
+            --text-inverse: #101114;
+            
+            /* Borders */
+            --border-color: #262933;
+            --border-hover: #373b4a;
+            --border-focus: #f97316; /* Single Confident Accent */
+            
+            /* Single Accent (Industrial Copper / Warning Orange) */
+            --accent: #f97316;
+            --accent-hover: #ea580c;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+            
+            /* Triadic Desaturated Status Colors */
+            --state-pending: #4d94ff;
+            --state-shipped: #e09b1b;
+            --state-delivered: #2ba676;
+            --state-deleted: #d9534f;
+            
+            --historical-bg: rgba(224, 155, 27, 0.03);
+            --historical-border: rgba(224, 155, 27, 0.25);
+            
+            /* Typography pairing */
+            --font-main: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            
+            /* Spacing (4px scale) */
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-5: 20px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            /* Radii */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-round: 9999px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            letter-spacing: -0.015em;
+            line-height: 1.45;
+        }
+
+        /* Top Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-4) var(--spacing-6);
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .logo-section h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .connection-status {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            background: var(--bg-raised);
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Connected breathing status pulse */
+        .connection-status:has(.status-dot[style*="background-color: rgb(16, 185, 129)"]) .status-dot,
+        .connection-status:has(.status-dot:not([style*="background-color"])) .status-dot {
+            animation: breathe 2.5s infinite ease-in-out;
+        }
+
+        /* 3-Column Layout with explicit visual weight */
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr 360px;
+            gap: var(--spacing-5);
+            padding: var(--spacing-5);
+            flex: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .sidebar {
+                grid-column: span 2;
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--spacing-5);
+            }
+        }
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                grid-column: span 1;
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Left Column: Live Board */
+        .live-board {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-4);
+        }
+
+        /* Stats Grid (Tabular design) */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-3);
+        }
+
+        .stat-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-4);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-1);
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.45rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+        }
+
+        .stat-total::after { background: var(--accent); }
+        .stat-pending::after { background: var(--state-pending); }
+        .stat-shipped::after { background: var(--state-shipped); }
+        .stat-delivered::after { background: var(--state-delivered); }
+
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-3);
+            align-items: start;
+            transition: all 0.3s ease;
+        }
+
+        /* Time travel pause cue: desaturate live board when scrubber is active */
+        .container:has(#historical-banner:not([style*="display: none"])) .live-board {
+            filter: grayscale(0.85) contrast(0.85);
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .column {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+            max-height: 780px;
+        }
+
+        .column-header {
+            padding: var(--spacing-4);
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .column-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .column-count {
+            background: var(--bg-raised);
+            padding: var(--spacing-1) var(--spacing-3);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .column-body {
+            padding: var(--spacing-3);
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-3);
+        }
+
+        .column-body:empty::after {
+            content: 'no orders in lane';
+            display: block;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: var(--spacing-6) 0;
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        /* Order Cards (Operational data style) */
+        .order-card {
+            background: var(--bg-raised);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-4);
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            position: relative;
+        }
+
+        .order-card:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-hover);
+        }
+
+        /* Sweep left-border highlight transition instead of white flash */
+        .order-card.updated {
+            animation: pulseCardLeftBorder 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .order-card.reconstructed-card {
+            border-color: var(--historical-border);
+        }
+        .order-card.reconstructed-card.pulse-updated {
+            animation: pulseHistoryChange 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .order-id {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-1);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .order-customer {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .order-product {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .order-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: var(--spacing-2);
+            border-top: 1px solid var(--border-color);
+            padding-top: var(--spacing-3);
+        }
+
+        .btn-action {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: var(--spacing-1) var(--spacing-3);
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-action:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-hover);
+        }
+
+        .btn-action:focus-visible {
+            outline: 2px solid var(--border-focus);
+            outline-offset: 1px;
+        }
+
+        .btn-ship { color: var(--state-shipped); border-color: rgba(224, 155, 27, 0.2); }
+        .btn-ship:hover { background: rgba(224, 155, 27, 0.08); }
+        .btn-deliver { color: var(--state-delivered); border-color: rgba(43, 166, 118, 0.2); }
+        .btn-deliver:hover { background: rgba(43, 166, 118, 0.08); }
+        .btn-delete { color: var(--state-deleted); border-color: rgba(217, 83, 79, 0.2); }
+        .btn-delete:hover { background: rgba(217, 83, 79, 0.08); }
+
+        /* Center Column: Time Travel Debugger */
+        .time-travel-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-4);
+            min-height: 600px;
+        }
+
+        .historical-view-banner {
+            background: var(--historical-bg);
+            border: 1px solid var(--historical-border);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-3) var(--spacing-4);
+            font-size: 0.75rem;
+            color: var(--state-shipped);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .historical-view-banner::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--state-shipped);
+            animation: breathe 1.5s infinite ease-in-out;
+        }
+
+        /* Scrubber Styles */
+        .timeline-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-3);
+            background: var(--bg-input);
+            padding: var(--spacing-4);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .scrubber-row {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .slider-bar {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            border-radius: var(--radius-round);
+            background: var(--border-color);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider-bar:focus-visible {
+            outline: 2px solid var(--border-focus);
+            outline-offset: 2px;
+        }
+
+        .slider-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--state-shipped);
+            transition: transform 0.12s ease;
+        }
+
+        .slider-bar::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            background: #fff;
+        }
+
+        .playback-buttons {
+            display: flex;
+            gap: var(--spacing-2);
+            align-items: center;
+        }
+
+        .btn-playback {
+            background: var(--state-shipped);
+            color: var(--text-inverse);
+            border: none;
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: opacity 0.15s;
+        }
+
+        .btn-playback:hover {
+            opacity: 0.9;
+        }
+
+        .speed-select {
+            background: var(--bg-raised);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: var(--spacing-2) var(--spacing-3);
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .timeline-time-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .reconstructed-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-3);
+            overflow-y: auto;
+            flex: 1;
+            max-height: 520px;
+        }
+
+        .reconstructed-grid:empty::after {
+            content: 'SCRUB TIMELINE TO FOLD LOG RECORDS';
+            display: block;
+            grid-column: span 2;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: var(--spacing-8) 0;
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        /* Right Column: Secondary sidebar panel controls (lowered prominence) */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-5);
+        }
+
+        .side-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-4);
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .panel-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-4);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: var(--spacing-2);
+        }
+
+        /* AI Operational Summary Box */
+        .ai-insight-box {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-4);
+            font-size: 0.75rem;
+            line-height: 1.5;
+            margin-bottom: var(--spacing-4);
+            color: var(--text-primary);
+        }
+
+        .ai-footnote {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            margin-top: var(--spacing-2);
+            font-family: var(--font-mono);
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: var(--spacing-4);
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-3) var(--spacing-4);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.75rem;
+            transition: all 0.15s ease;
+        }
+
+        .form-control:hover {
+            border-color: var(--border-hover);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: var(--accent);
+            color: var(--text-inverse);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-3);
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.99);
+        }
+
+        /* Monospace Logs Feed (Terminal Style) */
+        .log-terminal {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-3);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            border-left: 2px solid var(--text-muted);
+            padding-left: var(--spacing-2);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .log-time { color: var(--text-muted); }
+        .log-op-insert { color: var(--state-delivered); }
+        .log-op-update { color: var(--state-shipped); }
+        .log-op-delete { color: var(--state-deleted); }
+        .log-op-insight { color: #d8b4fe; }
+
+        /* Copilot Q&A styling */
+        .qa-response-box {
+            margin-top: var(--spacing-3);
+            padding: var(--spacing-3) var(--spacing-4);
+            background: var(--bg-raised);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        /* Animations */
+        @keyframes breathe {
+            0%, 100% { opacity: 0.55; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulseCardLeftBorder {
+            0% { border-left: 4px solid var(--accent); background-color: var(--accent-glow); }
+            100% { border-left: 1px solid var(--border-color); background-color: transparent; }
+        }
+
+        @keyframes pulseHistoryChange {
+            0% { border-left: 4px solid var(--state-shipped); background-color: rgba(224, 155, 27, 0.1); }
+            100% { border-left: 1px solid var(--historical-border); background-color: transparent; }
+        }
+
+        @keyframes logFade {
+            from { opacity: 0; transform: translateX(-4px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-section">
+            <h1>Real-Time Order Stream</h1>
+        </div>
+        <div class="connection-status" id="ws-status">
+            <span class="status-dot" style="background-color: #ef4444;"></span>
+            Connecting...
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- Column 1: Live Board -->
+        <div class="live-board">
+            <!-- Statistics Counters -->
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <span class="stat-label">Total Orders</span>
+                    <span class="stat-value" id="stats-total">0</span>
+                </div>
+                <div class="stat-card stat-pending">
+                    <span class="stat-label">Pending</span>
+                    <span class="stat-value" id="stats-pending">0</span>
+                </div>
+                <div class="stat-card stat-shipped">
+                    <span class="stat-label">Shipped</span>
+                    <span class="stat-value" id="stats-shipped">0</span>
+                </div>
+                <div class="stat-card stat-delivered">
+                    <span class="stat-label">Delivered</span>
+                    <span class="stat-value" id="stats-delivered">0</span>
+                </div>
+            </div>
+
+            <!-- Kanban Columns -->
+            <div class="columns-grid">
+                <!-- Pending Column -->
+                <div class="column">
+                    <div class="column-header">
+                        <span class="column-title" style="color: var(--state-pending)">● Pending</span>
+                        <span class="column-count" id="count-pending">0</span>
+                    </div>
+                    <div class="column-body" id="col-pending"></div>
+                </div>
+
+                <!-- Shipped Column -->
+                <div class="column">
+                    <div class="column-header">
+                        <span class="column-title" style="color: var(--state-shipped)">▲ Shipped</span>
+                        <span class="column-count" id="count-shipped">0</span>
+                    </div>
+                    <div class="column-body" id="col-shipped"></div>
+                </div>
+
+                <!-- Delivered Column -->
+                <div class="column">
+                    <div class="column-header">
+                        <span class="column-title" style="color: var(--state-delivered)">■ Delivered</span>
+                        <span class="column-count" id="count-delivered">0</span>
+                    </div>
+                    <div class="column-body" id="col-delivered"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Time Travel Debugger -->
+        <div class="time-travel-panel">
+            <h2 class="panel-title">Time Travel Debugger</h2>
+            
+            <div class="historical-view-banner" id="historical-banner" style="display: none;">
+                Showing Historical Reconstructed State
+            </div>
+
+            <div class="timeline-controls">
+                <div class="scrubber-row">
+                    <button class="btn-playback" id="btn-play-pause" onclick="togglePlayback()">Play</button>
+                    <input type="range" id="timeline-slider" class="slider-bar" min="0" max="0" value="0" oninput="onSliderChange()">
+                    <select class="speed-select" id="playback-speed">
+                        <option value="1">1x Speed</option>
+                        <option value="2">2x Speed</option>
+                        <option value="5">5x Speed</option>
+                    </select>
+                </div>
+                <div class="scrubber-row" style="justify-content: space-between; margin-top: 0.2rem;">
+                    <span class="timeline-time-label" id="timeline-time">No timeline data available</span>
+                    <button class="btn-action" style="padding: 0.2rem 0.4rem;" onclick="resetToLive()">Reset to Live</button>
+                </div>
+            </div>
+
+            <div class="reconstructed-grid" id="reconstructed-orders-container">
+                <div style="grid-column: span 2; text-align: center; color: var(--text-muted); padding-top: 2rem;">
+                    Scrub the timeline to view historical state
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 3: Sidebar Control Panel -->
+        <div class="sidebar">
+            
+            <!-- Creation Form -->
+            <div class="side-panel">
+                <h2 class="panel-title">Create New Order</h2>
+                <form id="order-form">
+                    <div class="form-group">
+                        <label for="customer_name">Customer Name</label>
+                        <input type="text" id="customer_name" class="form-control" placeholder="e.g. John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="product_name">Product Name</label>
+                        <input type="text" id="product_name" class="form-control" placeholder="e.g. Mechanical Keyboard" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="btn-create-order">Submit Order</button>
+                </form>
+            </div>
+
+            <!-- AI Order Copilot Insights -->
+            <div class="side-panel">
+                <h2 class="panel-title">AI Order Copilot</h2>
+                
+                <div class="ai-insight-box">
+                    <div style="font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Operational Insight:</div>
+                    <div id="insight-text">Waiting for operational metrics summary broadcast...</div>
+                    <div class="ai-footnote" id="insight-time">N/A</div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="qa-input">Ask operational questions</label>
+                    <input type="text" id="qa-input" class="form-control" placeholder="e.g. Total shipped orders?">
+                </div>
+                <button type="button" class="btn-primary" onclick="askCopilot()">Ask AI</button>
+                
+                <div class="qa-response-box" id="qa-response">
+                    Response will be grounded strictly in context events.
+                </div>
+                <div class="ai-footnote" id="qa-range-footnote" style="display: none;">
+                    Audited Event ID range: min - max
+                </div>
+            </div>
+
+            <!-- WebSocket Event Filtering -->
+            <div class="side-panel">
+                <h2 class="panel-title">WS Event Filters</h2>
+                <div class="form-group">
+                    <label for="filter_customer">Filter by Customer</label>
+                    <input type="text" id="filter_customer" class="form-control" placeholder="e.g. John Doe">
+                </div>
+                <button type="button" class="btn-primary" onclick="applyWsFilters()">Apply Filter</button>
+                <div class="filter-status" id="active-filter-indicator" style="font-size: 0.7rem; margin-top: 0.4rem; padding: 0.3rem; color: var(--text-secondary);">
+                    Active Filter: None (Receiving all events)
+                </div>
+            </div>
+
+            <!-- WebSocket Live Console Feed -->
+            <div class="side-panel">
+                <h2 class="panel-title">Live System Logs</h2>
+                <div class="log-terminal" id="log-container">
+                    <div class="log-entry"><span class="log-time">[System]</span> Initializing logging monitor...</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = "/api/orders";
+        let ordersState = {};
+        let socket = null;
+        let jwtToken = null;
+
+        // Time travel state tracking
+        let isHistoricalMode = false;
+        let timelineEvents = [];
+        let timelineMinTime = null;
+        let timelineMaxTime = null;
+        let playbackIntervalId = null;
+        let playbackIndex = 0;
+        let reconstructedState = new Map();
+
+        // Document elements
+        const form = document.getElementById("order-form");
+        const logContainer = document.getElementById("log-container");
+
+        // Fetch JWT Token on startup, then load orders and setup WS
+        async function init() {
+            try {
+                logMessage("System", "Requesting JWT authentication token...");
+                const authRes = await fetch("/api/auth/token?username=DashboardClient");
+                const authData = await authRes.json();
+                jwtToken = authData.token;
+                logMessage("System", "JWT token received successfully.");
+                
+                await fetchOrders();
+                setupWebSocket();
+                await initializeTimeTravel();
+            } catch (err) {
+                logMessage("System", `Initialization failed: ${err.message}`, "error");
+            }
+        }
+
+        // Fetch all orders on startup
+        async function fetchOrders() {
+            try {
+                const res = await fetch(API_URL);
+                const ordersList = await res.json();
+                ordersState = {};
+                ordersList.forEach(o => {
+                    ordersState[o.id] = o;
+                });
+                if (!isHistoricalMode) {
+                    renderAll();
+                }
+            } catch (err) {
+                logMessage("System", `Error fetching existing orders: ${err.message}`, "error");
+            }
+        }
+
+        // Render entire workspace state
+        function renderAll() {
+            // Clean columns
+            document.getElementById("col-pending").innerHTML = "";
+            document.getElementById("col-shipped").innerHTML = "";
+            document.getElementById("col-delivered").innerHTML = "";
+
+            let counts = { pending: 0, shipped: 0, delivered: 0, total: 0 };
+
+            Object.values(ordersState).forEach(order => {
+                counts.total++;
+                if (counts[order.status] !== undefined) {
+                    counts[order.status]++;
+                }
+                renderOrderCard(order);
+            });
+
+            updateStatsUI(counts);
+        }
+
+        function updateStatsUI(counts) {
+            document.getElementById("stats-total").textContent = counts.total;
+            document.getElementById("stats-pending").textContent = counts.pending;
+            document.getElementById("stats-shipped").textContent = counts.shipped;
+            document.getElementById("stats-delivered").textContent = counts.delivered;
+
+            document.getElementById("count-pending").textContent = counts.pending;
+            document.getElementById("count-shipped").textContent = counts.shipped;
+            document.getElementById("count-delivered").textContent = counts.delivered;
+        }
+
+        // Render a single order card
+        function renderOrderCard(order) {
+            const containerId = `col-${order.status}`;
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const card = document.createElement("div");
+            card.className = "order-card";
+            card.id = `card-${order.id}`;
+
+            let actionBtn = "";
+            if (order.status === "pending") {
+                actionBtn = `<button class="btn-action btn-ship" onclick="updateOrderStatus(${order.id}, 'shipped')">Ship ➔</button>`;
+            } else if (order.status === "shipped") {
+                actionBtn = `<button class="btn-action btn-deliver" onclick="updateOrderStatus(${order.id}, 'delivered')">Deliver ✓</button>`;
+            }
+
+            card.innerHTML = `
+                <div class="order-id">#ORD-${order.id.toString().padStart(4, '0')}</div>
+                <div class="order-customer">${escapeHtml(order.customer_name)}</div>
+                <div class="order-product">${escapeHtml(order.product_name)}</div>
+                <div class="order-actions">
+                    <button class="btn-action btn-delete" onclick="deleteOrder(${order.id})" title="Delete Order">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    ${actionBtn}
+                </div>
+            `;
+
+            container.appendChild(card);
+        }
+
+        // Action: Submit order
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const customerName = document.getElementById("customer_name").value.trim();
+            const productName = document.getElementById("product_name").value.trim();
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ customer_name: customerName, product_name: productName })
+                });
+                
+                if (res.ok) {
+                    form.reset();
+                } else {
+                    const errInfo = await res.json();
+                    logMessage("System", `Failed to create order: ${errInfo.error}`, "error");
+                }
+            } catch (err) {
+                logMessage("System", `Connection failed: ${err.message}`, "error");
+            }
+        });
+
+        // Action: Update status
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const res = await fetch(`${API_URL}/${orderId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (!res.ok) {
+                    const errInfo = await res.json();
+                    logMessage("System", `Failed to update status: ${errInfo.error}`, "error");
+                }
+            } catch (err) {
+                logMessage("System", `Update failed: ${err.message}`, "error");
+            }
+        }
+
+        // Action: Delete order
+        async function deleteOrder(orderId) {
+            try {
+                const res = await fetch(`${API_URL}/${orderId}`, {
+                    method: "DELETE"
+                });
+                if (!res.ok) {
+                    const errInfo = await res.json();
+                    logMessage("System", `Failed to delete order: ${errInfo.error}`, "error");
+                }
+            } catch (err) {
+                logMessage("System", `Delete failed: ${err.message}`, "error");
+            }
+        }
+
+        // Action: Apply client-side WebSocket filters
+        function applyWsFilters() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                logMessage("System", "WebSocket is not open. Cannot apply filters.", "error");
+                return;
+            }
+
+            const filterVal = document.getElementById("filter_customer").value.trim();
+            const payload = {
+                type: "SUBSCRIBE",
+                filters: {}
+            };
+
+            const indicator = document.getElementById("active-filter-indicator");
+
+            if (filterVal) {
+                payload.filters.customer_name = filterVal;
+                indicator.textContent = `Active Filter: Customer = "${filterVal}"`;
+                indicator.style.color = "#a855f7";
+            } else {
+                indicator.textContent = "Active Filter: None (Receiving all events)";
+                indicator.style.color = "#818cf8";
+            }
+
+            socket.send(JSON.stringify(payload));
+            logMessage("System", `Sent subscription filter update: ${JSON.stringify(payload.filters)}`);
+        }
+
+        // Action: Ask operational Copilot Q&A
+        async function askCopilot() {
+            const questionVal = document.getElementById("qa-input").value.trim();
+            if (!questionVal) return;
+
+            const responseBox = document.getElementById("qa-response");
+            const rangeFootnote = document.getElementById("qa-range-footnote");
+
+            responseBox.textContent = "Thinking...";
+            rangeFootnote.style.display = "none";
+
+            try {
+                const res = await fetch("/copilot/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${jwtToken}`
+                    },
+                    body: JSON.stringify({ question: questionVal })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    responseBox.textContent = data.answer;
+                    if (data.eventRange && data.eventRange.minId !== null) {
+                        rangeFootnote.textContent = `Audited Event ID range: ${data.eventRange.minId} - ${data.eventRange.maxId}`;
+                        rangeFootnote.style.display = "block";
+                    }
+                } else {
+                    const err = await res.json();
+                    responseBox.textContent = `Error: ${err.error}`;
+                }
+            } catch (err) {
+                responseBox.textContent = `Failed to get answer: ${err.message}`;
+            }
+        }
+
+        // Initialize Time Travel controls
+        async function initializeTimeTravel() {
+            try {
+                const res = await fetch("/replay/range", {
+                    headers: { "Authorization": `Bearer ${jwtToken}` }
+                });
+                const data = await res.json();
+                
+                if (data && data.min_time && data.max_time) {
+                    timelineMinTime = new Date(data.min_time);
+                    timelineMaxTime = new Date(data.max_time);
+
+                    const slider = document.getElementById("timeline-slider");
+                    slider.min = 0;
+                    // Calculate range span in seconds
+                    slider.max = Math.ceil((timelineMaxTime - timelineMinTime) / 1000);
+                    slider.value = slider.max; // Default to live end
+                    
+                    document.getElementById("timeline-time").textContent = `End: ${timelineMaxTime.toLocaleString()}`;
+                    
+                    // Pre-load timeline events
+                    const timelineRes = await fetch(`/replay/timeline?from=${timelineMinTime.toISOString()}&to=${timelineMaxTime.toISOString()}`, {
+                        headers: { "Authorization": `Bearer ${jwtToken}` }
+                    });
+                    timelineEvents = await timelineRes.json();
+                } else {
+                    document.getElementById("timeline-time").textContent = "No database events recorded yet.";
+                }
+            } catch (err) {
+                console.error("Failed to initialize time travel range:", err);
+            }
+        }
+
+        // Triggered when dragging timeline slider
+        async function onSliderChange() {
+            if (!timelineMinTime) return;
+            
+            // Stop any active play animation
+            if (playbackIntervalId) {
+                clearInterval(playbackIntervalId);
+                playbackIntervalId = null;
+                document.getElementById("btn-play-pause").textContent = "Play";
+            }
+
+            const sliderValue = Number(document.getElementById("timeline-slider").value);
+            const targetTime = new Date(timelineMinTime.getTime() + (sliderValue * 1000));
+            document.getElementById("timeline-time").textContent = targetTime.toLocaleString();
+
+            isHistoricalMode = true;
+            document.getElementById("historical-banner").style.display = "flex";
+
+            await reconstructState(targetTime.toISOString());
+        }
+
+        // Perform time travel state reconstruction query
+        async function reconstructState(timestampIso) {
+            try {
+                const res = await fetch(`/replay/state?at=${timestampIso}`, {
+                    headers: { "Authorization": `Bearer ${jwtToken}` }
+                });
+                const data = await res.json();
+                reconstructedState = new Map();
+                data.orders.forEach(o => {
+                    reconstructedState.set(o.id, o);
+                });
+                renderReconstructedState();
+            } catch (err) {
+                console.error("Failed to reconstruct state:", err);
+            }
+        }
+
+        // Render the in-memory reconstructed state
+        function renderReconstructedState(pulsingOrderId = null) {
+            const container = document.getElementById("reconstructed-orders-container");
+            container.innerHTML = "";
+
+            if (reconstructedState.size === 0) {
+                container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: var(--text-muted); padding-top: 2rem;">No orders existed at this timestamp</div>';
+                return;
+            }
+
+            for (const order of reconstructedState.values()) {
+                const card = document.createElement("div");
+                card.className = "order-card reconstructed-card";
+                if (order.id === pulsingOrderId) {
+                    card.className += " pulse-updated";
+                }
+
+                card.innerHTML = `
+                    <div class="order-id">#ORD-${order.id.toString().padStart(4, '0')}</div>
+                    <div class="order-customer">${escapeHtml(order.customer_name)}</div>
+                    <div class="order-product">${escapeHtml(order.product_name)}</div>
+                    <div class="order-actions" style="border-top:none; padding-top:0;">
+                        <span style="font-size:0.75rem; font-weight:600; color:var(--${order.status});">
+                            ${order.status.toUpperCase()}
+                        </span>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        // Play/Pause scrubber timeline incremental events loop
+        function togglePlayback() {
+            if (!timelineMinTime || timelineEvents.length === 0) return;
+
+            const playPauseBtn = document.getElementById("btn-play-pause");
+            const slider = document.getElementById("timeline-slider");
+
+            if (playbackIntervalId) {
+                // Pause
+                clearInterval(playbackIntervalId);
+                playbackIntervalId = null;
+                playPauseBtn.textContent = "Play";
+            } else {
+                // Play
+                playPauseBtn.textContent = "Pause";
+                isHistoricalMode = true;
+                document.getElementById("historical-banner").style.display = "flex";
+
+                // If slider is at the end, reset to start
+                if (Number(slider.value) >= Number(slider.max)) {
+                    slider.value = 0;
+                    reconstructedState = new Map();
+                    renderReconstructedState();
+                }
+
+                // Determine start playback event index
+                const sliderValue = Number(slider.value);
+                const currentSecTime = new Date(timelineMinTime.getTime() + (sliderValue * 1000));
+                
+                // Find first event starting after currentSecTime
+                playbackIndex = timelineEvents.findIndex(e => new Date(e.emitted_at) >= currentSecTime);
+                if (playbackIndex === -1) playbackIndex = 0;
+
+                const speedSelect = document.getElementById("playback-speed");
+                const intervalDelay = 1000 / Number(speedSelect.value);
+
+                playbackIntervalId = setInterval(() => {
+                    if (playbackIndex >= timelineEvents.length) {
+                        clearInterval(playbackIntervalId);
+                        playbackIntervalId = null;
+                        playPauseBtn.textContent = "Play";
+                        logMessage("System", "Time-Travel replay playback completed.");
+                        return;
+                    }
+
+                    const event = timelineEvents[playbackIndex];
+                    const eventTime = new Date(event.emitted_at);
+
+                    // Update slider position
+                    slider.value = Math.ceil((eventTime - timelineMinTime) / 1000);
+                    document.getElementById("timeline-time").textContent = eventTime.toLocaleString();
+
+                    // Apply event in-memory to reconstructed state
+                    const orderId = event.order_id;
+                    if (event.operation === "DELETE") {
+                        reconstructedState.delete(orderId);
+                        renderReconstructedState();
+                    } else {
+                        reconstructedState.set(orderId, {
+                            id: orderId,
+                            customer_name: event.payload.customer_name,
+                            product_name: event.payload.product_name,
+                            status: event.payload.status,
+                            updated_at: event.payload.updated_at
+                        });
+                        renderReconstructedState(orderId);
+                    }
+
+                    playbackIndex++;
+                }, intervalDelay);
+            }
+        }
+
+        // Reset to live view
+        function resetToLive() {
+            if (playbackIntervalId) {
+                clearInterval(playbackIntervalId);
+                playbackIntervalId = null;
+                document.getElementById("btn-play-pause").textContent = "Play";
+            }
+            
+            isHistoricalMode = false;
+            document.getElementById("historical-banner").style.display = "none";
+            
+            // Set slider to max
+            const slider = document.getElementById("timeline-slider");
+            slider.value = slider.max;
+            if (timelineMaxTime) {
+                document.getElementById("timeline-time").textContent = `End: ${timelineMaxTime.toLocaleString()}`;
+            }
+
+            // Clean reconstructed board
+            const container = document.getElementById("reconstructed-orders-container");
+            container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: var(--text-muted); padding-top: 2rem;">Scrub the timeline to view historical state</div>';
+
+            renderAll();
+        }
+
+        // Log events in UI console
+        function logMessage(sender, text, type = "") {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement("div");
+            entry.className = "log-entry";
+            
+            let senderClass = "";
+            if (type === "INSERT") senderClass = "log-op-insert";
+            else if (type === "UPDATE") senderClass = "log-op-update";
+            else if (type === "DELETE") senderClass = "log-op-delete";
+            else if (type === "insight") senderClass = "log-op-insight";
+
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${senderClass}">${sender}</span>: ${text}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Set up WebSocket Connection with token query param
+        function setupWebSocket() {
+            if (!jwtToken) return;
+
+            const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws?token=${jwtToken}`;
+            socket = new WebSocket(wsUrl);
+
+            const statusDot = document.getElementById("ws-status");
+
+            socket.onopen = function() {
+                statusDot.innerHTML = '<span class="status-dot"></span> Active';
+                statusDot.style.color = '#10b981';
+                logMessage("System", "WebSocket authenticated connection established.");
+            };
+
+            socket.onmessage = function(event) {
+                const payload = JSON.parse(event.data);
+                
+                // Check if message is a periodic operational insight
+                if (payload.type === "insight") {
+                    document.getElementById("insight-text").textContent = payload.text;
+                    const date = new Date(payload.generatedAt);
+                    document.getElementById("insight-time").textContent = `Generated: ${date.toLocaleTimeString()} (Based on ${payload.basedOnEventCount} events)`;
+                    logMessage("AI Copilot", `New operational summary broadcast: "${payload.text}"`, "insight");
+                    return;
+                }
+
+                // Handle system ACK or INFO responses
+                if (payload.type === "ACK") {
+                    logMessage("WS Server", `Filter update acknowledged. Active filters: ${JSON.stringify(payload.filters)}`);
+                    return;
+                }
+                if (payload.type === "INFO") {
+                    logMessage("WS Server", payload.message);
+                    return;
+                }
+
+                const operation = payload.operation;
+                const data = payload.data;
+
+                logMessage("WS Broadcast", `${operation} payload received for Order #${data.id}`, operation);
+
+                if (operation === "INSERT") {
+                    ordersState[data.id] = data;
+                    if (!isHistoricalMode) renderAll();
+                    setTimeout(() => {
+                        const card = document.getElementById(`card-${data.id}`);
+                        if (card) card.classList.add("updated");
+                    }, 50);
+                } 
+                else if (operation === "UPDATE") {
+                    ordersState[data.id] = data;
+                    if (!isHistoricalMode) renderAll();
+                    setTimeout(() => {
+                        const card = document.getElementById(`card-${data.id}`);
+                        if (card) card.classList.add("updated");
+                    }, 50);
+                } 
+                else if (operation === "DELETE") {
+                    const card = document.getElementById(`card-${data.id}`);
+                    if (card) {
+                        card.style.opacity = "0";
+                        card.style.transform = "scale(0.9)";
+                        setTimeout(() => {
+                            delete ordersState[data.id];
+                            if (!isHistoricalMode) renderAll();
+                        }, 300);
+                    } else {
+                        delete ordersState[data.id];
+                        if (!isHistoricalMode) renderAll();
+                    }
+                }
+
+                // Refresh timeline limits
+                initializeTimeTravel();
+            };
+
+            socket.onclose = function() {
+                statusDot.innerHTML = '<span class="status-dot" style="background-color:#ef4444; box-shadow: 0 0 10px #ef4444;"></span> Offline';
+                statusDot.style.color = '#ef4444';
+                logMessage("System", "WebSocket Disconnected. Reconnecting in 5s...", "error");
+                setTimeout(setupWebSocket, 5000);
+            };
+
+            socket.onerror = function(err) {
+                logMessage("System", "WebSocket encountered an error.", "error");
+                socket.close();
+            };
+        }
+
+        // Helpers
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Load startup operations
+        window.addEventListener("DOMContentLoaded", () => {
+            init();
+        });
+    </script>
+</body>
+</html>
